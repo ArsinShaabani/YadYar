@@ -1,0 +1,105 @@
+name: YadYar
+options:
+  bundleIdPrefix: ir.yadyar
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: 1.0.0
+    CURRENT_PROJECT_VERSION: 1
+    # Put your Apple Developer Team ID here (or set it in Xcode):
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  YadYar:
+    type: application
+    platform: iOS
+    sources:
+      - path: YadYar
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ir.yadyar.app
+    info:
+      path: YadYar/Info.plist
+      properties:
+        CFBundleDisplayName: یاد یار
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        CFBundleURLTypes:
+          - CFBundleURLName: ir.yadyar.app
+            CFBundleURLSchemes:
+              - yadyar
+        NSRemindersFullAccessUsageDescription: برای ثبت قرارها در اپ Reminders نیاز به دسترسی داریم.
+        NSRemindersUsageDescription: برای ثبت قرارها در اپ Reminders نیاز به دسترسی داریم.
+        NSCalendarsWriteOnlyAccessUsageDescription: برای ثبت قرارها در تقویم نیاز به دسترسی نوشتن داریم.
+        NSCalendarsUsageDescription: برای ثبت قرارها در تقویم نیاز به دسترسی داریم.
+        NSUserNotificationsUsageDescription: برای آلارم و یادآوری قرارها نیاز به ارسال اعلان داریم.
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: YadYar/YadYar.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.ir.yadyar.shared
+    dependencies:
+      - target: ShareExtension
+        embed: true
+
+  ShareExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ShareExtension
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: ir.yadyar.app.ShareExtension
+    info:
+      path: ShareExtension/Info.plist
+      properties:
+        CFBundleDisplayName: یاد یار
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.share-services
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ShareViewController
+          NSExtensionAttributes:
+            NSExtensionActivationRule:
+              NSExtensionActivationSupportsText: true
+              NSExtensionActivationSupportsWebURLWithMaxCount: 1
+              NSExtensionActivationSupportsWebPageWithMaxCount: 1
+    entitlements:
+      path: ShareExtension/ShareExtension.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.ir.yadyar.shared
+
+  YadYarTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: YadYar
+
+schemes:
+  YadYar:
+    build:
+      targets:
+        YadYar: all
+        YadYarTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - YadYarTests

@@ -1,0 +1,19 @@
+# Xcode
+*.xcodeproj
+!project.yml
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
+
+# Xcode user data
+xcuserdata/
+*.xcuserstate
+
+# CocoaPods / SPM (not used, just in case)
+Pods/
+.swiftpm
