@@ -21,6 +21,8 @@ final class RepeatAndCategoryTests: XCTestCase {
                        calendar.date(byAdding: .day, value: 1, to: base))
         XCTAssertEqual(RepeatRule.weekly.nextDate(after: base, calendar: calendar),
                        calendar.date(byAdding: .weekOfYear, value: 1, to: base))
+        XCTAssertEqual(RepeatRule.monthly.nextDate(after: base, calendar: calendar),
+                       calendar.date(byAdding: .month, value: 1, to: base))
         XCTAssertNil(RepeatRule.none.nextDate(after: base, calendar: calendar))
     }
 

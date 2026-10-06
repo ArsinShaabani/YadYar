@@ -38,7 +38,7 @@ final class ReminderService {
         if #available(iOS 17.0, *) {
             return (try? await eventStore.requestFullAccessToReminders()) ?? false
         } else {
-            return await withCheckedThrowingContinuation { continuation in
+            return await withCheckedContinuation { continuation in
                 eventStore.requestAccess(to: .reminder) { granted, _ in
                     continuation.resume(returning: granted)
                 }
@@ -70,6 +70,8 @@ final class ReminderService {
         reminder.addAlarm(EKAlarm(absoluteDate: fireDate))
 
         // …and an optional heads-up alarm before it.
+        // The relative offset counts back from the exact time, so both alarms
+        // carry a due date even when the device clock changes.
         if let minutes = offset.minutesBefore {
             reminder.addAlarm(EKAlarm(relativeOffset: TimeInterval(-minutes * 60)))
         }
@@ -83,6 +85,8 @@ final class ReminderService {
                                                          interval: 1, end: nil)]
         case .weekly:
             reminder.recurrenceRules = [EKRecurrenceRule(recurrenceWith: .weekly,
+        case .monthly:
+            reminder.recurrenceRules = [EKRecurrenceRule(recurrenceWith: .monthly,
                                                          interval: 1, end: nil)]
         }
 
@@ -110,7 +114,7 @@ final class ReminderService {
         if #available(iOS 17.0, *) {
             granted = (try? await eventStore.requestWriteOnlyAccessToEvents()) ?? false
         } else {
-            granted = await withCheckedThrowingContinuation { continuation in
+            granted = await withCheckedContinuation { continuation in
                 eventStore.requestAccess(to: .event) { granted, _ in
                     continuation.resume(returning: granted)
                 }
@@ -136,6 +140,8 @@ final class ReminderService {
             event.recurrenceRules = [EKRecurrenceRule(recurrenceWith: .daily, interval: 1, end: nil)]
         case .weekly:
             event.recurrenceRules = [EKRecurrenceRule(recurrenceWith: .weekly, interval: 1, end: nil)]
+        case .monthly:
+            event.recurrenceRules = [EKRecurrenceRule(recurrenceWith: .monthly, interval: 1, end: nil)]
         }
 
         do {

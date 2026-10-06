@@ -14,6 +14,7 @@ struct ParserFoundTime {
     var hour: Int
     var minute: Int
     var fragment: String
+    var isRelative: Bool = false
 }
 
 struct ParserFoundDate {
@@ -63,24 +64,42 @@ enum ParserKit {
         "هفت": 7, "هشت": 8, "نه": 9, "ده": 10, "یازده": 11, "دوازده": 12
     ]
 
+    static let relativeHourWords: [String: Int] = [
+        "یک": 1, "دو": 2, "سه": 3, "چهار": 4, "پنج": 5, "شش": 6,
+        "هفت": 7, "هشت": 8, "نه": 9, "ده": 10
+    ]
+
     static let ordinalDayNumbers: [String: Int] = [
-        "اول": 1, "دوم": 2, "سوم": 3, "چهارم": 4, "پنجم": 5, "ششم": 6,
+        "اول": 1, "یکم": 1, "دوم": 2, "سوم": 3, "چهارم": 4, "پنجم": 5, "ششم": 6,
         "هفتم": 7, "هشتم": 8, "نهم": 9, "دهم": 10, "یازدهم": 11, "دوازدهم": 12,
         "سیزدهم": 13, "چهاردهم": 14, "پانزدهم": 15, "شانزدهم": 16, "هفدهم": 17,
         "هجدهم": 18, "نوزدهم": 19, "بیستم": 20,
         "بیست و یکم": 21, "بیست و دوم": 22, "بیست و سوم": 23, "بیست و چهارم": 24,
         "بیست و پنجم": 25, "بیست و ششم": 26, "بیست و هفتم": 27, "بیست و هشتم": 28,
-        "بیست و نهم": 29, "سی ام": 30
+        "بیست و نهم": 29, "سی ام": 30, "سی و یکم": 31
     ]
 
-    /// Regex alternation for Persian day ordinals (۱..۳۰), longest-first.
+    /// Words that actively argue AGAINST an appointment (bank/SMS spam, OTP codes,
+    /// balance notices). Each hit lowers the confidence score.
+    static let negativeKeywords: [String] = [
+        "برداشت", "واریز", "موجودی", "رمز", "کد تایید", "کدتایید", "تاییدیه",
+        "صورتحساب", "قبض", "بدهی", "تراکنش",
+        "withdraw", "deposit", "balance", "otp", "verification code", "transaction"
+    ]
+
+    /// Regex alternation for Persian day ordinals (۱..۳۱), longest-first so that
+    /// «دهم» never matches inside «یازدهم» / «دوازدهم».
     static var ordinalPattern: String {
-        var list = ["اول", "دوم", "سوم", "چهارم", "پنجم", "ششم", "هفتم", "هشتم", "نهم", "دهم",
+        let base = ["اول", "یکم", "دوم", "سوم", "چهارم", "پنجم", "ششم", "هفتم", "هشتم", "نهم", "دهم",
                     "یازدهم", "دوازدهم", "سیزدهم", "چهاردهم", "پانزدهم", "شانزدهم", "هفدهم",
                     "هجدهم", "نوزدهم", "بیستم"]
         let ones = ["یکم", "دوم", "سوم", "چهارم", "پنجم", "ششم", "هفتم", "هشتم", "نهم"]
+        var list = base
         for word in ones { list.append("بیست و " + word) }
         list.append("سی ام")
+        list.append("سی و یکم")
+        // Longest-first: NSRegularExpression alternation is ordered, not longest-match.
+        list.sort { $0.count > $1.count }
         return list
             .map { $0.replacingOccurrences(of: " ", with: "\\s*و\\s*") }
             .joined(separator: "|")
@@ -135,7 +154,10 @@ enum ParserKit {
     }
 
     /// Adjusts a 12-hour clock reading to 24-hour using صبح/ظهر/عصر/شب markers.
+    /// Hours already in 24h form (> 12) are returned untouched, so «ساعت ۱۸»
+    /// plus a stray «شب» later in the sentence cannot wrap around to 06:00.
     static func adjustedHour(hour: Int, marker: String?) -> Int {
+        if hour > 12 { return hour }
         let marker = collapseSpaces(marker ?? "")
         if marker.isEmpty { return hour }
         let normalized = marker.replacingOccurrences(of: " ", with: "")

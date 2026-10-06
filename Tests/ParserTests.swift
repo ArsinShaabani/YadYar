@@ -13,7 +13,6 @@ final class ParserTests: XCTestCase {
 
     private let parser = AppointmentParser()
     private let tz = TimeZone(identifier: "Asia/Tehran")!
-
     /// 2024-11-05 10:00 (سه‌شنبه) Tehran — 1403/08/15
     private var now: Date {
         var comps = DateComponents()
@@ -106,5 +105,52 @@ final class ParserTests: XCTestCase {
         XCTAssertEqual(result?.fireDate,
                        JalaliCalendar.gregorianDate(from: JalaliCalendar.JalaliDate(year: 1403, month: 12, day: 15),
                                                     hour: 10, minute: 0, timeZone: tz))
+    }
+
+    func testRejectsImpossibleDates() {
+        // 31 آبان has only 30 days → must not roll over into آذر.
+        XCTAssertNil(parser.parse("قرار ۳۱ آبان ساعت ۱۰", now: now, timeZone: tz))
+        // 32/13/1403 is not a real calendar date either.
+        XCTAssertNil(parser.parse("قرار ۱۴۰۳/۱۳/۳۲ ساعت ۱۰", now: now, timeZone: tz))
+    }
+
+    func testAmbiguousBarePairIgnored() {
+        // «۵/۶» without a year could be day/month or month/day → ignored.
+        XCTAssertNil(parser.parse("قرار ۵/۶ ساعت ۱۰", now: now, timeZone: tz))
+    }
+
+    func testEnglishMonthWithoutYearRollsForward() {
+        // now = 2024-11-05 10:00 → «November 5» resolves to next year's occurrence.
+        let result = parser.parse("Meeting November 5 at 10am", now: now, timeZone: tz)
+        XCTAssertEqual(result?.fireDate, expected(2025, 11, 5, 10, 0))
+    }
+
+    func testBankSMSPenaltyKeepsLowConfidence() {
+        let result = parser.parse("برداشت ۵۰۰٬۰۰۰ ریال از حساب شما در تاریخ ۱۴۰۳/۰۸/۱۵ ساعت ۱۴:۳۰", now: now, timeZone: tz)
+        XCTAssertNotNil(result)
+        XCTAssertLessThan(result?.confidence ?? 1, 0.6)
+    }
+
+    func testRelativeHalfHour() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let target = cal.date(byAdding: .minute, value: 30, to: now)!
+        let parts = cal.dateComponents([.year, .month, .day, .hour, .minute], from: target)
+        XCTAssertEqual(fire("قرار نیم ساعت دیگه"), expected(parts.year!, parts.month!, parts.day!, parts.hour!, parts.minute!))
+    }
+
+    func testRelativeTwoHours() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let target = cal.date(byAdding: .hour, value: 2, to: now)!
+        let parts = cal.dateComponents([.year, .month, .day, .hour, .minute], from: target)
+        XCTAssertEqual(fire("قرار 2 ساعت دیگه"), expected(parts.year!, parts.month!, parts.day!, parts.hour!, parts.minute!))
+    }
+
+    func testTitleStripsDateFragments() {
+        let result = parser.parse("قرار دندانپزشکی فردا ساعت ۵ عصر", now: now, timeZone: tz)
+        XCTAssertNotNil(result)
+        XCTAssertFalse(result?.suggestedTitle.contains("ساعت") ?? true)
+        XCTAssertFalse(result?.suggestedTitle.contains("فردا") ?? true)
     }
 }

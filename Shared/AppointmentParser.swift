@@ -25,20 +25,23 @@ public final class AppointmentParser {
     public func parse(_ rawText: String,
                       now: Date = Date(),
                       timeZone: TimeZone = .current) -> ParsedAppointment? {
+        // Guard the raw input too: callers (tests, clipboard, share sheet)
+        // sometimes pass pure whitespace / control characters.
+        guard !rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         let text = PersianTextNormalizer.normalize(rawText)
         guard !text.isEmpty else { return nil }
 
         var fragments: [String] = []
         var consumed: [NSRange] = []
 
-        let foundTime = extractTime(in: text, fragments: &fragments, consumed: &consumed)
+        let foundTime = extractTime(in: text, now: now, timeZone: timeZone, fragments: &fragments, consumed: &consumed)
         let foundDate = extractDate(in: text, now: now, timeZone: timeZone,
                                     fragments: &fragments, consumed: &consumed)
 
         if foundTime == nil && foundDate == nil {
             guard let fallback = dataDetectorFallback(raw: rawText, now: now, timeZone: timeZone,
                                                       fragments: &fragments) else { return nil }
-            return ParsedAppointment(suggestedTitle: makeTitle(from: text),
+            return ParsedAppointment(suggestedTitle: makeTitle(from: text, excluding: fragments),
                                      fireDate: fallback.date,
                                      hasExplicitTime: fallback.hasTime,
                                      confidence: 0.55,
@@ -47,14 +50,17 @@ public final class AppointmentParser {
 
         let fireDate = resolveFireDate(foundDate: foundDate, foundTime: foundTime,
                                        now: now, timeZone: timeZone)
-        let title = makeTitle(from: text)
+        let title = makeTitle(from: text, excluding: fragments)
 
         var confidence = 0.0
         if firstKeyword(in: text) != nil { confidence += 0.30 }
         if foundDate != nil { confidence += 0.35 }
         if foundTime != nil { confidence += 0.30 }
-        if foundDate != nil && foundTime != nil { confidence += 0.05 }
-        confidence = min(confidence, 0.98)
+        if foundDate != nil, foundTime != nil { confidence += 0.05 }
+        // Bank/OTP/spam phrasing argues against an appointment.
+        let negatives = ParserKit.negativeKeywords.filter { text.contains($0) }.count
+        confidence -= 0.20 * Double(min(negatives, 2))
+        confidence = min(max(confidence, 0.0), 0.98)
 
         return ParsedAppointment(suggestedTitle: title,
                                  fireDate: fireDate,
@@ -95,7 +101,8 @@ public final class AppointmentParser {
         var date = calendar.date(from: comps) ?? now
 
         // «today at hh:mm» that already passed (with no explicit date) → assume tomorrow.
-        if foundDate == nil && date <= now {
+        let isRelativeTime = foundTime?.isRelative ?? false
+        if foundDate == nil && !isRelativeTime && date <= now {
             date = calendar.date(byAdding: .day, value: 1, to: date) ?? date
         }
         return date
@@ -120,9 +127,17 @@ public final class AppointmentParser {
 
     // MARK: - Title
 
-    func makeTitle(from text: String) -> String {
-        let sentences = text
-            .components(separatedBy: CharacterSet(charactersIn: ".!؟?;؛\n،,"))
+    func makeTitle(from text: String, excluding fragments: [String] = []) -> String {
+        let separators = CharacterSet(charactersIn: ".!؟?;؛\n،,")
+        // Strip the exact fragments the parser consumed so the title keeps
+        // the human part («قرار دندانپزشکی») instead of («ساعت ۵ عصر»).
+        var cleaned = text
+        for fragment in fragments where !fragment.isEmpty {
+            cleaned = cleaned.replacingOccurrences(of: fragment, with: " ")
+        }
+        cleaned = ParserKit.collapseSpaces(cleaned)
+        let sentences = cleaned
+            .components(separatedBy: separators)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         if let hit = sentences.first(where: { sentence in

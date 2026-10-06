@@ -18,16 +18,22 @@ public enum AppointmentSource: String, Codable {
 /// How long before the appointment the user wants a heads-up notification.
 public enum ReminderOffset: String, Codable, CaseIterable, Identifiable {
     case none
+    case minutes10
     case minutes30
     case hour1
     case day1
+    case week1
 
     public var id: String { rawValue }
 
     public var label: String {
         switch self {
         case .none: return "فقط در زمان قرار"
-        case .minutes30: return "۳۰ دقیقه قبل"
+        case .minutes10: return "10 دقیقه قبل"
+        case .minutes30: return "30 دقیقه قبل"
+        case .hour1: return "1 ساعت قبل"
+        case .day1: return "1 روز قبل"
+        case .week1: return "1 هفته قبل"
         case .hour1: return "۱ ساعت قبل"
         case .day1: return "۱ روز قبل"
         }
@@ -39,6 +45,8 @@ public enum ReminderOffset: String, Codable, CaseIterable, Identifiable {
         case .minutes30: return 30
         case .hour1: return 60
         case .day1: return 24 * 60
+        case .minutes10: return 10
+        case .week1: return 7 * 24 * 60
         }
     }
 }
@@ -78,6 +86,7 @@ public enum RepeatRule: String, Codable, CaseIterable, Identifiable {
     case none
     case daily
     case weekly
+    case monthly
 
     public var id: String { rawValue }
 
@@ -86,6 +95,7 @@ public enum RepeatRule: String, Codable, CaseIterable, Identifiable {
         case .none: return "بدون تکرار"
         case .daily: return "روزانه"
         case .weekly: return "هفتگی"
+        case .monthly: return "ماهانه"
         }
     }
 
@@ -95,6 +105,7 @@ public enum RepeatRule: String, Codable, CaseIterable, Identifiable {
         case .none: return nil
         case .daily: return calendar.date(byAdding: .day, value: 1, to: date)
         case .weekly: return calendar.date(byAdding: .weekOfYear, value: 1, to: date)
+        case .monthly: return calendar.date(byAdding: .month, value: 1, to: date)
         }
     }
 }

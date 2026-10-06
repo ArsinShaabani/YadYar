@@ -57,15 +57,18 @@ final class NotificationService: NSObject {
     // MARK: - Scheduling
 
     /// Schedules notifications for an appointment and returns identifiers.
-    /// Repeating appointments get one repeating trigger (hour/minute based);
-    /// heads-up offsets are supported only for one-time appointments.
+    /// One-time appointments get the exact-time trigger plus an optional
+    /// heads-up; repeating appointments get one repeating trigger
+    /// (hour/minute based) so iOS fires them indefinitely.
+    /// Past dates are skipped — there is no point scheduling an alarm
+    /// that would either never fire or fire immediately by mistake.
     func scheduleNotifications(for appointment: Appointment) -> [String] {
         let center = UNUserNotificationCenter.current()
         var identifiers: [String] = []
         let suffix = appointment.repeatRule == .none ? "" : "-repeat"
 
         // Main trigger (repeats for recurring appointments).
-        if appointment.fireDate > Date() || appointment.repeatRule != .none {
+        if appointment.fireDate > Date() {
             let id = "appt-\(appointment.id.uuidString)-main\(suffix)"
             let content = makeContent(for: appointment,
                                       title: appointment.repeatRule == .none ? "وقت قرار رسید!" : "وقت قرار همیشگی رسید!",
@@ -97,6 +100,11 @@ final class NotificationService: NSObject {
         if appointment.repeatRule == .none {
             let comps = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: appointment.fireDate)
             return UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
+        }
+        if appointment.repeatRule == .monthly {
+            var comps = calendar.dateComponents([.day, .hour, .minute], from: appointment.fireDate)
+            comps.timeZone = calendar.timeZone
+            return UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
         }
         if appointment.repeatRule == .weekly {
             var comps = calendar.dateComponents([.weekday, .hour, .minute], from: appointment.fireDate)

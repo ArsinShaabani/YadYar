@@ -53,6 +53,7 @@ struct AppointmentRow: View {
         case .none: return ""
         case .daily: return " 🔁"
         case .weekly: return " 🔁 (هفتگی)"
+        case .monthly: return " R-ماهانه"
         }
     }
 }

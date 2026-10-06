@@ -55,6 +55,16 @@ final class JalaliTests: XCTestCase {
         }
     }
 
+    // Day 31 only exists in Farvardin..Shahrivar; Esfand 30 only in leap years.
+    func testRejectsImpossibleJalaliDays() {
+        XCTAssertEqual(JalaliCalendar.daysInMonth(year: 1403, month: 8), 30)
+        XCTAssertEqual(JalaliCalendar.daysInMonth(year: 1403, month: 1), 31)
+        XCTAssertEqual(JalaliCalendar.daysInMonth(year: 1403, month: 12), 30) // leap year
+        XCTAssertEqual(JalaliCalendar.daysInMonth(year: 1404, month: 12), 29)
+        XCTAssertTrue(JalaliCalendar.isLeapYear(1403))
+        XCTAssertFalse(JalaliCalendar.isLeapYear(1404))
+    }
+
     func testRoundTrip() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = tz

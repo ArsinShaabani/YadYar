@@ -134,6 +134,20 @@ public enum JalaliCalendar {
         return calendar.date(from: components)
     }
 
+    public static func daysInMonth(year jy: Int, month jm: Int) -> Int {
+        guard (1...12).contains(jm) else { return 0 }
+        if jm <= 6 { return 31 }
+        if jm <= 11 { return 30 }
+        return isLeapYear(jy) ? 30 : 29
+    }
+
+    /// True when the Jalali year is a leap year (33-year cycle used by the
+    /// jdf algorithm: remainders 1, 5, 9, 13, 17, 22, 26, 30 mod 33).
+    public static func isLeapYear(_ jy: Int) -> Bool {
+        let r = ((jy % 33) + 33) % 33
+        return r == 1 || r == 5 || r == 9 || r == 13 || r == 17 || r == 22 || r == 26 || r == 30
+    }
+
     public static func weekdayName(for date: Date, timeZone: TimeZone = .current) -> String {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone

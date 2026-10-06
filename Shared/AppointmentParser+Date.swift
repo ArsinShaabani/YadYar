@@ -49,20 +49,24 @@ extension AppointmentParser {
                      consumed: inout [NSRange]) -> ParserFoundDate? {
         let fullRange = NSRange(text.startIndex..., in: text)
         for regex in Self.datePatterns {
-            guard let match = regex.firstMatch(in: text, options: [], range: fullRange) else { continue }
-            let matchRange = match.range
+            // Try every match: an unresolvable first hit (e.g. an out-of-range
+            // year like «9999/01/01») must not block a later valid date.
+            let matches = regex.matches(in: text, options: [], range: fullRange)
+            for match in matches {
+                let matchRange = match.range
 
-            // Numeric 2-part dates must not collide with an already extracted time («ساعت 5/30»).
-            if ParserKit.overlaps(matchRange, consumed) { continue }
+                // Numeric 2-part dates must not collide with an already extracted time («ساعت 5/30»).
+                if ParserKit.overlaps(matchRange, consumed) { continue }
 
-            guard let stringRange = Range(matchRange, in: text) else { continue }
-            let fragment = text[stringRange].trimmingCharacters(in: .whitespaces)
+                guard let stringRange = Range(matchRange, in: text) else { continue }
+                let fragment = text[stringRange].trimmingCharacters(in: .whitespaces)
 
-            if let resolved = resolveDateMatch(match, in: text, now: now,
-                                               timeZone: timeZone, fragment: fragment) {
-                consumed.append(matchRange)
-                fragments.append(fragment)
-                return resolved
+                if let resolved = resolveDateMatch(match, in: text, now: now,
+                                                   timeZone: timeZone, fragment: fragment) {
+                    consumed.append(matchRange)
+                    fragments.append(fragment)
+                    return resolved
+                }
             }
         }
         return nil

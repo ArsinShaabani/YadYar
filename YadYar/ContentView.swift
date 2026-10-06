@@ -217,7 +217,7 @@ struct ContentView: View {
                 .padding(.vertical, 10)
                 .background(.thinMaterial, in: Capsule())
                 .padding(.bottom, 24)
-                .task {
+                .task(id: toast) {
                     try? await Task.sleep(nanoseconds: 2_500_000_000)
                     viewModel.toast = nil
                 }
